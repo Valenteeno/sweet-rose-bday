@@ -1,0 +1,697 @@
+/* ============================================================
+   A Quiet Cosmology — birthday experience
+   Black canvas · Cormorant serif · blood-red + antique gold
+   ============================================================ */
+
+:root {
+  --bg:        #07060a;
+  --bg-soft:   #0e0c12;
+  --ink:       #f5ede1;
+  --ink-dim:   rgba(245, 237, 225, 0.55);
+  --ink-faint: rgba(245, 237, 225, 0.22);
+  --rose:      #8B0000;
+  --rose-glow: #c41e3a;
+  --gold:      #D4AF37;
+  --gold-dim:  rgba(212, 175, 55, 0.55);
+
+  --serif: 'Cormorant Garamond', 'Cormorant', Garamond, 'Times New Roman', serif;
+
+  /* pointer / spotlight state (updated by JS) */
+  --mx: 50%;
+  --my: 50%;
+  --spot: 220px;       /* spotlight radius */
+  --spot-feather: 260px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body {
+  scroll-snap-type: y mandatory;
+  overflow-y: scroll;
+  height: 100vh;
+  cursor: none; /* replaced by custom spotlight cursor */
+}
+
+@media (hover: none) {
+  body { cursor: auto; }
+}
+
+img { display: block; max-width: 100%; }
+
+/* ============================================================
+   GRAIN  — film stock overlay
+   ============================================================ */
+.grain {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.6'/></svg>");
+  animation: grain-shift 1.4s steps(6) infinite;
+}
+@keyframes grain-shift {
+  0%   { transform: translate(0,0); }
+  20%  { transform: translate(-3%, 1%); }
+  40%  { transform: translate(2%, -2%); }
+  60%  { transform: translate(-1%, 3%); }
+  80%  { transform: translate(3%, 2%); }
+  100% { transform: translate(0,0); }
+}
+
+/* ============================================================
+   AUDIO TOGGLE  — visible pause / play button, top-right
+   ============================================================ */
+.audio-toggle {
+  position: fixed;
+  top: 24px; right: 24px;
+  z-index: 100;
+  background: rgba(20, 14, 18, 0.55);
+  border: 1px solid rgba(245, 237, 225, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 10px 16px 10px 12px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+}
+.audio-toggle:hover {
+  background: rgba(40, 24, 30, 0.75);
+  border-color: rgba(245, 237, 225, 0.32);
+}
+.audio-toggle:active { transform: scale(0.97); }
+
+.audio-toggle .breath {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--rose-glow);
+  box-shadow: 0 0 12px 1px var(--rose-glow);
+  animation: breath 2.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.audio-toggle.paused .breath {
+  animation: none;
+  background: transparent;
+  border: 1px solid var(--ink-faint);
+  box-shadow: none;
+}
+
+.audio-toggle .icon {
+  width: 12px; height: 12px;
+  fill: var(--ink);
+  flex-shrink: 0;
+}
+.audio-toggle .icon-pause { display: inline-block; }
+.audio-toggle .icon-play  { display: none; }
+.audio-toggle.paused .icon-pause { display: none; }
+.audio-toggle.paused .icon-play  { display: inline-block; }
+
+.audio-toggle .breath-label::before { content: "pause"; }
+.audio-toggle.paused .breath-label::before { content: "play"; }
+
+@keyframes breath {
+  0%, 100% { transform: scale(1);   opacity: 0.9; box-shadow: 0 0 12px 1px var(--rose-glow); }
+  50%      { transform: scale(1.35); opacity: 1;   box-shadow: 0 0 24px 4px var(--rose-glow); }
+}
+
+/* ============================================================
+   CUSTOM CURSOR  — soft warm orb
+   ============================================================ */
+.cursor {
+  position: fixed;
+  top: 0; left: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 95;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,235,205,0.35) 0%, rgba(255,235,205,0) 70%);
+  mix-blend-mode: screen;
+  transition: width 0.4s ease, height 0.4s ease, opacity 0.4s ease;
+}
+.cursor::after {
+  content: '';
+  position: absolute; inset: 14px;
+  border-radius: 50%;
+  background: rgba(245,237,225,0.85);
+  box-shadow: 0 0 12px 2px rgba(245,237,225,0.4);
+}
+@media (hover: none) { .cursor { display: none; } }
+
+/* ============================================================
+   SECTIONS  — each chapter is a snap target
+   ============================================================ */
+.ch {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  height: 100svh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ch__inner {
+  position: relative;
+  z-index: 10;
+  width: min(900px, 88vw);
+  text-align: center;
+  padding: 24px;
+}
+
+/* shared typography */
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+.line {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: clamp(1.6rem, 3.6vw, 2.9rem);
+  line-height: 1.32;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.line .em {
+  color: var(--rose-glow);
+  font-style: italic;
+}
+.sub {
+  margin-top: 1.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+/* Entrance: chapter activates as it enters the viewport */
+.ch [data-fade] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 1.6s ease, transform 1.6s cubic-bezier(0.16,1,0.3,1);
+  transition-delay: var(--delay, 0ms);
+}
+.ch.active [data-fade] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   SCROLL HINT  (chapter 1 only)
+   ============================================================ */
+.scroll-hint {
+  position: absolute;
+  bottom: 36px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  color: var(--ink-faint);
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  animation: hint 3.4s ease-in-out infinite;
+}
+.scroll-hint .arrow {
+  width: 1px; height: 38px;
+  background: linear-gradient(180deg, var(--ink-faint), transparent);
+}
+@keyframes hint {
+  0%, 100% { opacity: 0.3; transform: translate(-50%, 0); }
+  50%      { opacity: 0.8; transform: translate(-50%, 8px); }
+}
+
+/* ============================================================
+   CHAPTER 1 — OVERTURE
+   ============================================================ */
+.ch--overture .ch__inner { max-width: 760px; }
+.ch--overture .line { font-size: clamp(1.4rem, 3.2vw, 2.5rem); }
+
+.falling-petal {
+  position: absolute;
+  top: -10%; left: 70%;
+  width: 38px; height: 38px;
+  pointer-events: none;
+  animation: petal-fall 18s linear infinite;
+  animation-delay: 4s;
+  opacity: 0;
+}
+@keyframes petal-fall {
+  0%   { transform: translate(0, 0) rotate(0deg);     opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translate(-60vw, 120vh) rotate(540deg); opacity: 0; }
+}
+
+/* ============================================================
+   PHOTO CHAPTERS — shared spotlight reveal
+   ============================================================ */
+.ch--photo .photo-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+}
+.ch--photo .photo-stage img,
+.ch--photo .photo-stage .photo-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.photo-fallback {
+  background:
+    radial-gradient(ellipse at 50% 38%, #2a1f1a 0%, #120c14 50%, #07060a 100%);
+}
+.photo-fallback::after {
+  content: 'photo placeholder';
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--serif); font-style: italic;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  font-size: 0.7rem;
+  color: rgba(245,237,225,0.18);
+}
+
+/* the dark veil with a soft hole at the pointer */
+.ch--photo .veil {
+  position: absolute; inset: 0;
+  z-index: 2;
+  background: var(--bg);
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(
+    circle var(--spot-feather) at var(--mx) var(--my),
+    transparent 0%,
+    rgba(0,0,0,0.35) 50%,
+    #000 calc(var(--spot-feather) + 60px)
+  );
+          mask-image: radial-gradient(
+    circle var(--spot-feather) at var(--mx) var(--my),
+    transparent 0%,
+    rgba(0,0,0,0.35) 50%,
+    #000 calc(var(--spot-feather) + 60px)
+  );
+  transition: -webkit-mask-image 0.35s ease, mask-image 0.35s ease;
+}
+
+/* base vignette under everything */
+.ch--photo::after {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 40%, rgba(7,6,10,0.75) 100%);
+}
+
+/* caption layer above veil */
+.ch--photo .ch__inner {
+  z-index: 5;
+}
+
+/* ============================================================
+   CHAPTER 2 — STARFIELD BIRTH
+   ============================================================ */
+.ch--starfield .ch__inner {
+  margin-top: auto;
+  padding-bottom: 14vh;
+  padding-top: 18vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 100%;
+}
+.starfield {
+  position: absolute; inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  left: var(--x); top: var(--y);
+  opacity: var(--o, 0.7);
+  animation: twinkle var(--t, 3s) ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+  box-shadow: 0 0 4px rgba(255, 245, 220, 0.8);
+}
+.star.gold {
+  background: var(--gold);
+  box-shadow: 0 0 6px var(--gold);
+  width: 3px; height: 3px;
+}
+.star.big { width: 3px; height: 3px; }
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50%      { opacity: 1;    transform: scale(1.2); }
+}
+
+.constellation-svg {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.constellation-svg line {
+  stroke: var(--gold-dim);
+  stroke-width: 0.5;
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: draw 4s ease-out forwards;
+  animation-delay: var(--delay, 1.5s);
+}
+.constellation-svg circle {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 4px var(--gold));
+  opacity: 0;
+  animation: pop 0.6s ease-out forwards;
+  animation-delay: var(--delay, 1.5s);
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes pop {
+  to { opacity: 1; }
+}
+
+.ch--starfield .date {
+  font-family: var(--serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.6em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  margin-bottom: 1.8rem;
+}
+
+/* ============================================================
+   CHAPTER 3 — FILM NOIR
+   ============================================================ */
+.ch--noir .photo-stage img,
+.ch--noir .photo-stage .photo-fallback {
+  filter: grayscale(1) contrast(1.15) brightness(0.78);
+}
+
+/* hard diagonal spotlight beam coming from above-left */
+.noir-beam {
+  position: absolute; inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 28%,
+      rgba(255, 240, 215, 0.07) 32%,
+      rgba(255, 240, 215, 0.12) 42%,
+      rgba(255, 240, 215, 0.07) 52%,
+      transparent 56%,
+      transparent 100%
+    );
+  mix-blend-mode: screen;
+}
+
+.dust {
+  position: absolute; inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.mote {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: rgba(255, 240, 220, 0.7);
+  border-radius: 50%;
+  left: var(--x); top: 110%;
+  animation: drift var(--t, 22s) linear infinite;
+  animation-delay: var(--d, 0s);
+  opacity: 0;
+}
+@keyframes drift {
+  0%   { transform: translate(0, 0);            opacity: 0; }
+  15%  { opacity: 0.9; }
+  85%  { opacity: 0.9; }
+  100% { transform: translate(var(--dx, -20vw), -120vh); opacity: 0; }
+}
+
+.ch--noir .ch__inner {
+  margin-top: auto;
+  padding-bottom: 14vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 100%;
+}
+
+/* ============================================================
+   CHAPTER 4 — THE ROSE
+   ============================================================ */
+.ch--rose {
+  background: radial-gradient(ellipse at center, #14080c 0%, #07060a 70%);
+}
+.rose-stage {
+  position: relative;
+  width: min(80vmin, 600px);
+  height: min(80vmin, 600px);
+  display: flex; align-items: center; justify-content: center;
+}
+.rose-svg {
+  width: 100%; height: 100%;
+  filter: drop-shadow(0 0 40px rgba(139, 0, 0, 0.5));
+}
+.rose-svg .petal {
+  transform-origin: 200px 200px;
+  transform: scale(0) rotate(0deg);
+  opacity: 0;
+  transition: transform 2.4s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 2.4s ease;
+  transition-delay: var(--rd, 0ms);
+}
+.ch--rose.active .rose-svg .petal {
+  transform: scale(1) rotate(var(--rot, 0deg));
+  opacity: 1;
+}
+
+/* orbiting words around rose */
+.orbit {
+  position: absolute;
+  inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.orbit-word {
+  position: absolute;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(0.85rem, 1.4vw, 1.1rem);
+  color: var(--ink-dim);
+  letter-spacing: 0.15em;
+  opacity: 0;
+  transition: opacity 2s ease;
+  transition-delay: calc(1.2s + var(--ow, 0ms));
+  white-space: nowrap;
+  transform: translate(var(--tx, 0), var(--ty, 0));
+  animation: float 9s ease-in-out infinite;
+  animation-delay: var(--ow, 0ms);
+}
+.ch--rose.active .orbit-word { opacity: 1; }
+@keyframes float {
+  0%, 100% { transform: translate(var(--tx, 0), var(--ty, 0)); }
+  50%      { transform: translate(calc(var(--tx, 0) + 6px), calc(var(--ty, 0) - 4px)); }
+}
+
+.ch--rose .rose-caption {
+  position: absolute;
+  bottom: 12vh; left: 0; right: 0;
+  text-align: center;
+  z-index: 10;
+}
+
+/* ============================================================
+   CHAPTER 5 — CONSTELLATION OF YOU
+   ============================================================ */
+.ch--constellation .photo-stage img,
+.ch--constellation .photo-stage .photo-fallback {
+  filter: brightness(0.65) saturate(0.7);
+}
+
+.face-stars {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.face-star {
+  position: absolute;
+  left: var(--x); top: var(--y);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  transition-delay: var(--delay, 0ms);
+}
+.ch--constellation.active .face-star { opacity: 1; }
+.face-star-dot {
+  width: 8px; height: 8px;
+  background: var(--gold);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 8px var(--gold));
+  margin: 0 auto;
+}
+.face-star-label {
+  margin-top: 12px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--ink);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-align: center;
+  text-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+
+.face-lines {
+  position: absolute; inset: 0;
+  z-index: 3;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.face-lines line {
+  stroke: var(--gold-dim);
+  stroke-width: 0.6;
+  stroke-dasharray: 300;
+  stroke-dashoffset: 300;
+  transition: stroke-dashoffset 3s ease-out;
+  transition-delay: var(--delay, 0ms);
+}
+.ch--constellation.active .face-lines line {
+  stroke-dashoffset: 0;
+}
+
+.ch--constellation .ch__inner {
+  margin-top: auto;
+  padding-bottom: 8vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 100%;
+}
+
+/* ============================================================
+   CHAPTER 6 — HAPPY BIRTHDAY
+   ============================================================ */
+.ch--birthday .photo-stage img,
+.ch--birthday .photo-stage .photo-fallback {
+  filter: brightness(0.82) contrast(1.05);
+}
+.ch--birthday .veil {
+  /* on the finale the spotlight is much larger — the show fully reveals */
+  -webkit-mask-image: radial-gradient(
+    circle 480px at var(--mx) var(--my),
+    transparent 0%,
+    rgba(0,0,0,0.2) 60%,
+    rgba(0,0,0,0.7) 100%
+  );
+          mask-image: radial-gradient(
+    circle 480px at var(--mx) var(--my),
+    transparent 0%,
+    rgba(0,0,0,0.2) 60%,
+    rgba(0,0,0,0.7) 100%
+  );
+}
+.ch--birthday::after {
+  background:
+    radial-gradient(ellipse at center, transparent 30%, rgba(7,6,10,0.6) 100%);
+}
+.ch--birthday h1 {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(2.4rem, 6vw, 5.5rem);
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-bottom: 1.4rem;
+  text-shadow: 0 4px 30px rgba(0,0,0,0.6);
+}
+.ch--birthday h1 .amp {
+  color: var(--rose-glow);
+  font-style: italic;
+  font-weight: 400;
+}
+.ch--birthday .ch__inner {
+  margin-top: auto;
+  padding-bottom: 12vh;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  min-height: 100%;
+}
+.ch--birthday .signature {
+  margin-top: 2.4rem;
+  font-style: italic;
+  color: var(--gold-dim);
+  letter-spacing: 0.18em;
+  font-size: 0.85rem;
+}
+
+.finale-petal {
+  position: absolute;
+  top: -10%;
+  width: 50px; height: 50px;
+  pointer-events: none;
+  z-index: 6;
+  animation: petal-fall-slow 14s linear infinite;
+  opacity: 0;
+}
+.finale-petal:nth-child(1) { left: 18%; animation-delay: 1s; }
+.finale-petal:nth-child(2) { left: 78%; animation-delay: 5s; animation-duration: 17s; }
+.finale-petal:nth-child(3) { left: 48%; animation-delay: 9s; animation-duration: 19s; }
+@keyframes petal-fall-slow {
+  0%   { transform: translate(0, 0) rotate(0deg);     opacity: 0; }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.85; }
+  100% { transform: translate(-20vw, 120vh) rotate(360deg); opacity: 0; }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 640px) {
+  :root {
+    --spot: 160px;
+    --spot-feather: 200px;
+  }
+  .audio-toggle {
+    top: 14px; right: 14px;
+    padding: 8px 12px 8px 10px;
+    font-size: 0.62rem;
+    gap: 8px;
+  }
+  .audio-toggle .icon { width: 10px; height: 10px; }
+  .audio-toggle .breath { width: 7px; height: 7px; }
+  .line { font-size: clamp(1.3rem, 5.2vw, 2.1rem); }
+  .ch--birthday h1 { font-size: clamp(2rem, 11vw, 4rem); }
+  .ch--rose .rose-caption { bottom: 8vh; }
+  .face-star-label { font-size: 0.82rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
